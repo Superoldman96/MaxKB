@@ -47,6 +47,12 @@
               :chat-management="ChatManagement"
             ></AnswerContent>
           </template>
+          <TransitionContent
+            v-if="transcribing"
+            :text="t('chat.transcribing')"
+            :type="type"
+            :application="applicationDetails"
+          ></TransitionContent>
         </div>
       </el-scrollbar>
 
@@ -67,6 +73,7 @@
             <slot name="operateBefore">
               <span></span>
             </slot>
+
             <el-button
               v-if="isUserInput"
               class="user-input-button mb-8"
@@ -93,14 +100,17 @@ import { ChatManagement, type chatType } from '@/api/type/application'
 import { randomId } from '@/utils/utils'
 import useStore from '@/stores'
 import { isWorkFlow } from '@/utils/application'
-import { debounce, first } from 'lodash'
+import { debounce } from 'lodash'
 import AnswerContent from '@/components/ai-chat/component/answer-content/index.vue'
 import QuestionContent from '@/components/ai-chat/component/question-content/index.vue'
+import TransitionContent from '@/components/ai-chat/component/transition-content/index.vue'
 import ChatInputOperate from '@/components/ai-chat/component/chat-input-operate/index.vue'
 import PrologueContent from '@/components/ai-chat/component/prologue-content/index.vue'
 import UserForm from '@/components/ai-chat/component/user-form/index.vue'
 import Control from '@/components/ai-chat/component/control/index.vue'
 import { t } from '@/locales'
+import bus from '@/bus'
+const transcribing = ref<boolean>(false)
 defineOptions({ name: 'AiChat' })
 const route = useRoute()
 const {
@@ -186,13 +196,27 @@ const toggleUserInput = () => {
 }
 
 function UserFormConfirm() {
-  firsUserInput.value = false
-  showUserInput.value = false
+  if (userFormRef.value?.checkInputParam()) {
+    firsUserInput.value = false
+    showUserInput.value = false
+  }
 }
 
 function sendMessage(val: string, other_params_data?: any, chat?: chatType) {
   if (!userFormRef.value?.checkInputParam()) {
+    if (isUserInput.value) {
+      showUserInput.value = true
+    }
     return
+  } else {
+    let userFormData = JSON.parse(localStorage.getItem(`${accessToken}userForm`) || '{}')
+    const newData = Object.keys(form_data.value).reduce((result: any, key: string) => {
+      result[key] = Object.prototype.hasOwnProperty.call(userFormData, key)
+        ? userFormData[key]
+        : form_data.value[key]
+      return result
+    }, {})
+    localStorage.setItem(`${accessToken}userForm`, JSON.stringify(newData))
   }
   if (!loading.value && props.applicationDetails?.name) {
     handleDebounceClick(val, other_params_data, chat)
@@ -495,8 +519,23 @@ const handleScroll = () => {
 }
 
 onMounted(() => {
-  window.speechSynthesis.cancel()
+  if (isUserInput.value && localStorage.getItem(`${accessToken}userForm`)) {
+    let userFormData = JSON.parse(localStorage.getItem(`${accessToken}userForm`) || '{}')
+    form_data.value = userFormData
+  }
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel()
+  }
+
   window.sendMessage = sendMessage
+  bus.on('on:transcribing', (status: boolean) => {
+    transcribing.value = status
+    nextTick(() => {
+      if (scorll.value) {
+        scrollDiv.value.setScrollTop(getMaxHeight())
+      }
+    })
+  })
 })
 
 onBeforeUnmount(() => {

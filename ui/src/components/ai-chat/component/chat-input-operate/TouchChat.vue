@@ -8,8 +8,9 @@
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
+      :disabled="disabled"
     >
-      按住说话
+      {{ disabled ? '对话中' : '按住说话' }}
     </el-button>
     <!-- 使用 custom-class 自定义样式 -->
     <transition name="el-fade-in-linear">
@@ -47,6 +48,10 @@ const props = defineProps({
   start: {
     type: Boolean,
     default: false
+  },
+  disabled: {
+    type: Boolean,
+    default: false
   }
 })
 const emit = defineEmits(['TouchStart', 'TouchEnd'])
@@ -57,11 +62,19 @@ const dialogVisible = ref(false)
 const message = ref('按住说话')
 
 watch(
-  () => props.time,
-  (val) => {
-    if (val && val === 60) {
+  () => [props.time, props.start],
+  ([time, start]) => {
+    if (start) {
+      isTouching.value = true
+      dialogVisible.value = true
+      message.value = '松开发送，上滑取消'
+      if (time === 60) {
+        dialogVisible.value = false
+        emit('TouchEnd', isTouching.value)
+        isTouching.value = false
+      }
+    } else {
       dialogVisible.value = false
-      emit('TouchEnd', isTouching.value)
       isTouching.value = false
     }
   }
@@ -81,10 +94,13 @@ watch(
 )
 
 function onTouchStart(event: any) {
-  emit('TouchStart')
-  startY.value = event.touches[0].clientY
   // 阻止默认滚动行为
   event.preventDefault()
+  if (props.disabled) {
+    return
+  }
+  emit('TouchStart')
+  startY.value = event.touches[0].clientY
 }
 function onTouchMove(event: any) {
   if (!isTouching.value) return

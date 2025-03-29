@@ -6,7 +6,7 @@
 
     <div>
       <!-- 语音播放 -->
-      <span>
+      <span v-if="tts">
         <el-tooltip
           v-if="audioManage?.isPlaying()"
           effect="dark"
@@ -94,15 +94,6 @@
           </el-button>
         </el-tooltip>
       </span>
-
-      <!-- 先渲染，不然不能播放   -->
-      <audio
-        ref="audioPlayer"
-        v-for="item in audioList"
-        :key="item"
-        controls
-        hidden="hidden"
-      ></audio>
       <div ref="audioCiontainer"></div>
     </div>
   </div>
@@ -142,7 +133,6 @@ const emit = defineEmits(['update:data', 'regeneration'])
 
 const audioPlayer = ref<HTMLAudioElement[] | null>([])
 const audioCiontainer = ref<HTMLDivElement>()
-const audioPlayerStatus = ref(false)
 const buttonData = ref(props.data)
 const loading = ref(false)
 
@@ -271,6 +261,7 @@ class AudioManage {
   tryList: Array<number>
   ttsType: string
   root: Element
+  is_end: boolean
   constructor(ttsType: string, root: HTMLDivElement) {
     this.textList = []
     this.audioList = []
@@ -278,6 +269,7 @@ class AudioManage {
     this.tryList = []
     this.ttsType = ttsType
     this.root = root
+    this.is_end = false
   }
   appendTextList(textList: Array<string>) {
     const newTextList = textList.slice(this.textList.length)
@@ -292,7 +284,7 @@ class AudioManage {
       index = this.textList.length - 1
       if (this.ttsType === 'TTS') {
         const audioElement: HTMLAudioElement = document.createElement('audio')
-        audioElement.controls = true
+        audioElement.controls = false
         audioElement.hidden = true
         /**
          * 播放结束事件
@@ -300,8 +292,9 @@ class AudioManage {
         audioElement.onended = () => {
           this.statusList[index] = AudioStatus.END
           // 如果所有的节点都播放结束
-          if (this.statusList.every((item) => item === AudioStatus.END)) {
+          if (this.statusList.every((item) => item === AudioStatus.END) && this.is_end) {
             this.statusList = this.statusList.map((item) => AudioStatus.READY)
+            this.is_end = false
           } else {
             // next
             this.play()
@@ -323,13 +316,11 @@ class AudioManage {
                 const text = await res.text()
                 MsgError(text)
                 this.statusList[index] = AudioStatus.ERROR
-                this.play()
-                return
+                throw ''
               }
               // 假设我们有一个 MP3 文件的字节数组
               // 创建 Blob 对象
               const blob = new Blob([res], { type: 'audio/mp3' })
-
               // 创建对象 URL
               const url = URL.createObjectURL(blob)
               audioElement.src = url
@@ -337,7 +328,6 @@ class AudioManage {
               this.play()
             })
             .catch((err) => {
-              console.log('err: ', err)
               this.statusList[index] = AudioStatus.ERROR
               this.play()
             })
@@ -348,9 +338,6 @@ class AudioManage {
         const speechSynthesisUtterance: SpeechSynthesisUtterance = new SpeechSynthesisUtterance(
           text
         )
-        speechSynthesisUtterance.onpause = () => {
-          console.log('onpause')
-        }
         speechSynthesisUtterance.onend = () => {
           this.statusList[index] = AudioStatus.END
           // 如果所有的节点都播放结束
@@ -389,8 +376,8 @@ class AudioManage {
               if (res.type === 'application/json') {
                 const text = await res.text()
                 MsgError(text)
-                this.statusList[index] = AudioStatus.ERROR
-                return
+
+                throw ''
               }
               // 假设我们有一个 MP3 文件的字节数组
               // 创建 Blob 对象
@@ -405,6 +392,7 @@ class AudioManage {
             .catch((err) => {
               console.log('err: ', err)
               this.statusList[index] = AudioStatus.ERROR
+              this.play()
             })
         }
       }
@@ -414,6 +402,9 @@ class AudioManage {
     return this.statusList.some((item) => [AudioStatus.PLAY_INT].includes(item))
   }
   play(text?: string, is_end?: boolean, self?: boolean) {
+    if (is_end) {
+      this.is_end = true
+    }
     if (self) {
       this.tryList = this.tryList.map((item) => 0)
     }
@@ -431,13 +422,26 @@ class AudioManage {
     const index = this.statusList.findIndex((status) =>
       [AudioStatus.MOUNTED, AudioStatus.READY].includes(status)
     )
-
     if (index < 0 || this.statusList[index] === AudioStatus.MOUNTED) {
       return
     }
 
     const audioElement = this.audioList[index]
-    if (audioElement instanceof SpeechSynthesisUtterance) {
+
+    if (audioElement instanceof HTMLAudioElement) {
+      // 标签朗读
+      try {
+        this.statusList[index] = AudioStatus.PLAY_INT
+        const play = audioElement.play()
+        if (play instanceof Promise) {
+          play.catch((e) => {
+            this.statusList[index] = AudioStatus.READY
+          })
+        }
+      } catch (e: any) {
+        this.statusList[index] = AudioStatus.ERROR
+      }
+    } else {
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume()
       } else {
@@ -447,14 +451,6 @@ class AudioManage {
         speechSynthesis.speak(audioElement)
         this.statusList[index] = AudioStatus.PLAY_INT
       }
-    } else {
-      // 标签朗读
-      try {
-        audioElement.play()
-        this.statusList[index] = AudioStatus.PLAY_INT
-      } catch (e) {
-        this.statusList[index] = AudioStatus.ERROR
-      }
     }
   }
   pause(self?: boolean) {
@@ -463,7 +459,14 @@ class AudioManage {
       return
     }
     const audioElement = this.audioList[index]
-    if (audioElement instanceof SpeechSynthesisUtterance) {
+
+    if (audioElement instanceof HTMLAudioElement) {
+      if (this.statusList[index] === AudioStatus.PLAY_INT) {
+        // 标签朗读
+        this.statusList[index] = AudioStatus.READY
+        audioElement.pause()
+      }
+    } else {
       this.statusList[index] = AudioStatus.READY
       if (self) {
         window.speechSynthesis.pause()
@@ -474,12 +477,6 @@ class AudioManage {
         })
       } else {
         window.speechSynthesis.cancel()
-      }
-    } else {
-      if (this.statusList[index] === AudioStatus.PLAY_INT) {
-        // 标签朗读
-        this.statusList[index] = AudioStatus.READY
-        audioElement.pause()
       }
     }
   }
@@ -497,6 +494,7 @@ class AudioManage {
       },
       is_end
     )
+
     return split
   }
 }

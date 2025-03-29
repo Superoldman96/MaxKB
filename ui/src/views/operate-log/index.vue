@@ -28,7 +28,7 @@
           />
         </div>
 
-        <div style="display: flex;">
+        <div style="display: flex">
           <div class="flex-between complex-search">
             <el-select
               v-model="filter_type"
@@ -67,7 +67,9 @@
               clearable
             />
           </div>
-          <el-button @click="exportLog" style="margin-left: 10px;">{{ $t('common.export') }}</el-button>
+          <el-button @click="exportLog" style="margin-left: 10px">{{
+            $t('common.export')
+          }}</el-button>
         </div>
       </div>
 
@@ -99,12 +101,17 @@
                 <div class="filter">
                   <div class="form-item mb-16">
                     <div @click.stop>
-                      <el-scrollbar height="300" style="margin: 0 0 0 10px;">
-                        <el-checkbox-group v-model="operateTypeArr" style="display: flex; flex-direction: column;">
-                          <el-checkbox v-for="item in operateOptions"
+                      <el-scrollbar height="300" style="margin: 0 0 0 10px">
+                        <el-checkbox-group
+                          v-model="operateTypeArr"
+                          style="display: flex; flex-direction: column"
+                        >
+                          <el-checkbox
+                            v-for="item in operateOptions"
                             :key="item.value"
                             :label="item.label"
-                            :value="item.value" />
+                            :value="item.value"
+                          />
                         </el-checkbox-group>
                       </el-scrollbar>
                     </div>
@@ -122,7 +129,24 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="operate" :label="$t('views.operateLog.table.operate.label')" />
+        <el-table-column prop="operate" :label="$t('views.operateLog.table.operate.detail')">
+          <template #default="{ row }">
+            <el-tooltip
+              :content="
+                row.operate + (row.operation_object?.name ? `【${row.operation_object.name}】` : '')
+              "
+              effect="dark"
+              placement="top"
+            >
+              <span class="text-ellipsis">
+                {{
+                  row.operate +
+                  (row.operation_object?.name ? `【${row.operation_object.name}】` : '')
+                }}
+              </span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
         <el-table-column
           width="120"
           prop="user.username"
@@ -289,7 +313,7 @@ function getRequestParams() {
   if (filter_type.value === 'status') {
     obj['status'] = filter_status.value
   }
-  if(operateTypeArr.value.length > 0) {
+  if (operateTypeArr.value.length > 0) {
     obj['menu'] = JSON.stringify(operateTypeArr.value)
   }
   return obj
@@ -305,12 +329,12 @@ function getList() {
 function getMenuList() {
   return operateLog.getMenuList().then((res) => {
     let arr: any[] = res.data
-    arr.filter((item, index, self) =>
-      index === self.findIndex((i) => i['menu'] === item['menu'])
-    ).forEach(ele => {
-      operateOptions.value.push({label:ele.menu_label, value:ele.menu})
-    })
-  }) 
+    arr
+      .filter((item, index, self) => index === self.findIndex((i) => i['menu'] === item['menu']))
+      .forEach((ele) => {
+        operateOptions.value.push({ label: ele.menu_label, value: ele.menu })
+      })
+  })
 }
 
 const exportLog = () => {
@@ -325,5 +349,12 @@ onMounted(() => {
 <style lang="scss" scoped>
 .text-button {
   font-size: 14px;
+}
+.text-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
 }
 </style>
