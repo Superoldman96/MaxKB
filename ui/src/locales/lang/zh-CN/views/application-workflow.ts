@@ -221,13 +221,15 @@ export default {
       assign: '赋值'
     },
     mcpNode: {
-      label: 'MCP 节点',
-      text: '调用 MCP 工具',
+      label: 'MCP 调用',
+      text: '通过SSE方式执行MCP服务中的工具',
       getToolsSuccess: '获取工具成功',
       getTool: '获取工具',
       tool: '工具',
       toolParam: '工具参数',
-      mcpServerTip: '请输入 JSON 格式的 MCP 服务器配置',
+      mcpServerTip: '请输入JSON格式的MCP服务器配置',
+      mcpToolTip: '请选择工具',
+      configLabel: 'MCP Server Config (仅支持SSE调用方式)'
     },
     imageGenerateNode: {
       label: '图片生成',

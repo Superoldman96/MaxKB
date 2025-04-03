@@ -8,8 +8,9 @@
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
+      :disabled="disabled"
     >
-      按住说话
+      {{ disabled ? '对话中' : '按住说话' }}
     </el-button>
     <!-- 使用 custom-class 自定义样式 -->
     <transition name="el-fade-in-linear">
@@ -22,9 +23,8 @@
             {{ message }}
           </span>
         </p>
-        <div class="close">
-          <el-icon><Close /></el-icon>
-        </div>
+        <el-avatar :size="isTouching ? 43 : 50" icon="Close" class="close" />
+        <!-- <div class="close"></div> -->
         <p class="lighter" :style="{ visibility: isTouching ? 'visible' : 'hidden' }">
           {{ message }}
         </p>
@@ -39,12 +39,17 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+// import { Close } from '@element-plus/icons-vue'
 const props = defineProps({
   time: {
     type: Number,
     default: 0
   },
   start: {
+    type: Boolean,
+    default: false
+  },
+  disabled: {
     type: Boolean,
     default: false
   }
@@ -57,11 +62,19 @@ const dialogVisible = ref(false)
 const message = ref('按住说话')
 
 watch(
-  () => props.time,
-  (val) => {
-    if (val && val === 60) {
+  () => [props.time, props.start],
+  ([time, start]) => {
+    if (start) {
+      isTouching.value = true
+      dialogVisible.value = true
+      message.value = '松开发送，上滑取消'
+      if (time === 60) {
+        dialogVisible.value = false
+        emit('TouchEnd', isTouching.value)
+        isTouching.value = false
+      }
+    } else {
       dialogVisible.value = false
-      emit('TouchEnd', isTouching.value)
       isTouching.value = false
     }
   }
@@ -81,10 +94,13 @@ watch(
 )
 
 function onTouchStart(event: any) {
-  emit('TouchStart')
-  startY.value = event.touches[0].clientY
   // 阻止默认滚动行为
   event.preventDefault()
+  if (props.disabled) {
+    return
+  }
+  emit('TouchStart')
+  startY.value = event.touches[0].clientY
 }
 function onTouchMove(event: any) {
   if (!isTouching.value) return
@@ -127,12 +143,8 @@ function onTouchEnd() {
     box-shadow: 0px 4px 8px 0px rgba(31, 35, 41, 0.1);
     border: 1px solid rgba(222, 224, 227, 1);
     background: rgba(255, 255, 255, 1);
-    border-radius: 100px;
-    display: inline-block;
-    width: 43px;
-    height: 43px;
-    line-height: 50px;
-    font-size: 1.8rem;
+    color: var(--app-text-color-secondary);
+    font-size: 1.6rem;
     margin: 20px 0;
   }
   .speech-img {
@@ -147,9 +159,7 @@ function onTouchEnd() {
     .close {
       background: #f54a45;
       color: #ffffff;
-      width: 50px;
-      height: 50px;
-      line-height: 57px;
+      border: none;
       font-size: 2rem;
     }
     .speech-img {

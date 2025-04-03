@@ -5,91 +5,129 @@
     </template>
     <div class="create-dataset__main flex" v-loading="loading">
       <div class="create-dataset__component main-calc-height">
-        <el-scrollbar>
-          <div class="upload-document p-24">
-            <h4 class="title-decoration-1 mb-8">
-              {{ $t('views.document.feishu.selectDocument') }}
-            </h4>
-            <el-form
-              ref="FormRef"
-              :model="form"
-              :rules="rules"
-              label-position="top"
-              require-asterisk-position="right"
-            >
-              <div class="mt-16 mb-16">
-                <el-radio-group v-model="form.fileType" class="app-radio-button-group">
-                  <el-radio-button value="txt"
-                    >{{ $t('views.document.fileType.txt.label') }}
-                  </el-radio-button>
-                </el-radio-group>
+        <div class="upload-document p-24" style="min-width: 850px">
+          <h4 class="title-decoration-1 mb-8">
+            {{ $t('views.document.feishu.selectDocument') }}
+          </h4>
+          <el-form
+            ref="FormRef"
+            :model="form"
+            :rules="rules"
+            label-position="top"
+            require-asterisk-position="right"
+          >
+            <div class="mt-16 mb-16">
+              <el-radio-group v-model="form.fileType" class="app-radio-button-group">
+                <el-radio-button value="txt"
+                  >{{ $t('views.document.fileType.txt.label') }}
+                </el-radio-button>
+              </el-radio-group>
+            </div>
+            <div class="update-info flex p-8-12 border-r-4 mb-16">
+              <div class="mt-4">
+                <AppIcon iconName="app-warning-colorful" style="font-size: 16px"></AppIcon>
               </div>
-              <div class="update-info flex p-8-12 border-r-4 mb-16">
-                <div class="mt-4">
-                  <AppIcon iconName="app-warning-colorful" style="font-size: 16px"></AppIcon>
-                </div>
-                <div class="ml-16 lighter">
-                  <p>{{ $t('views.document.feishu.tip1') }}</p>
-                  <p>{{ $t('views.document.feishu.tip2') }}</p>
-                </div>
+              <div class="ml-16 lighter">
+                <p>{{ $t('views.document.feishu.tip1') }}</p>
+                <p>{{ $t('views.document.feishu.tip2') }}</p>
               </div>
-              <div class="card-never border-r-4 mb-16">
-                <el-checkbox
-                  v-model="allCheck"
-                  :label="$t('views.document.feishu.allCheck')"
-                  size="large"
-                  class="ml-24"
-                  @change="handleAllCheckChange"
-                />
-              </div>
+            </div>
+            <div class="card-never border-r-4 mb-16">
+              <el-checkbox
+                v-model="allCheck"
+                :label="$t('views.document.feishu.allCheck')"
+                size="large"
+                class="ml-24"
+                @change="handleAllCheckChange"
+              />
+            </div>
+            <div style="height: calc(100vh - 450px)">
+              <el-scrollbar>
+                <el-tree
+                  :props="props"
+                  :load="loadNode"
+                  lazy
+                  show-checkbox
+                  node-key="token"
+                  ref="treeRef"
+                >
+                  <template #default="{ node, data }">
+                    <div class="custom-tree-node flex align-center lighter">
+                      <img
+                        src="@/assets/fileType/file-icon.svg"
+                        alt=""
+                        height="20"
+                        v-if="data.type === 'folder'"
+                      />
+                      <img
+                        src="@/assets/fileType/docx-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.type === 'docx' || data.name.endsWith('.docx')"
+                      />
+                      <img
+                        src="@/assets/fileType/xlsx-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.type === 'sheet' || data.name.endsWith('.xlsx')"
+                      />
+                      <img
+                        src="@/assets/fileType/xls-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.name.endsWith('xls')"
+                      />
+                      <img
+                        src="@/assets/fileType/csv-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.name.endsWith('csv')"
+                      />
+                      <img
+                        src="@/assets/fileType/pdf-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.name.endsWith('.pdf')"
+                      />
+                      <img
+                        src="@/assets/fileType/html-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.name.endsWith('.html')"
+                      />
+                      <img
+                        src="@/assets/fileType/txt-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.name.endsWith('.txt')"
+                      />
+                      <img
+                        src="@/assets/fileType/zip-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.name.endsWith('.zip')"
+                      />
+                      <img
+                        src="@/assets/fileType/md-icon.svg"
+                        alt=""
+                        height="22"
+                        v-else-if="data.name.endsWith('.md')"
+                      />
 
-              <el-tree
-                :props="props"
-                :load="loadNode"
-                lazy
-                show-checkbox
-                node-key="token"
-                ref="treeRef"
-              >
-                <template #default="{ node, data }">
-                  <div class="custom-tree-node flex align-center lighter">
-                    <el-icon v-if="data.type === 'folder'">
-                      <FolderOpened />
-                    </el-icon>
-                    <el-icon v-else-if="data.type === 'docx'">
-                      <Document />
-                    </el-icon>
-                    <el-icon class="xlsx-icon" v-else-if="data.type === 'sheet'">
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- 文件轮廓 -->
-                        <path
-                          d="M5 3H14L19 8V19C19 20.1 18.1 21 17 21H5C3.9 21 3 20.1 3 19V5C3 3.9 3.9 3 5 3Z"
-                          fill="white"
-                          stroke="currentColor"
-                          stroke-width="1.2"
-                        />
-                        <!-- 放大后的 X 符号（占比提升30%） -->
-                        <path
-                          d="M7 9L17 19M17 9L7 19"
-                          stroke="currentColor"
-                          stroke-width="2.5"
-                          stroke-linecap="round"
-                        />
-                      </svg>
-                    </el-icon>
-                    <span class="ml-4">{{ node.label }}</span>
-                  </div>
-                </template>
-              </el-tree>
-            </el-form>
-          </div>
-        </el-scrollbar>
+                      <span class="ml-4">{{ node.label }}</span>
+                    </div>
+                  </template>
+                </el-tree>
+              </el-scrollbar>
+            </div>
+          </el-form>
+        </div>
       </div>
     </div>
     <div class="create-dataset__footer text-right border-t">
       <el-button @click="router.go(-1)">{{ $t('common.cancel') }}</el-button>
 
-      <el-button @click="submit" type="primary">
+      <el-button @click="submit" type="primary" :disabled="disabled">
         {{ $t('views.document.buttons.import') }}
       </el-button>
     </div>
@@ -98,7 +136,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { MsgConfirm, MsgSuccess } from '@/utils/message'
+import { MsgConfirm, MsgSuccess, MsgWarning } from '@/utils/message'
+import { getImgUrl } from '@/utils/utils'
 import { t } from '@/locales'
 import type Node from 'element-plus/es/components/tree/src/model/node'
 import dataset from '@/api/dataset'
@@ -178,6 +217,7 @@ const handleAllCheckChange = (checked: boolean) => {
 
 function submit() {
   loading.value = true
+  disabled.value = true
   // 选中的节点的token
   const checkedNodes = treeRef.value?.getCheckedNodes() || []
   const filteredNodes = checkedNodes.filter((node: any) => !node.is_exist)
@@ -188,14 +228,24 @@ function submit() {
       type: node.type
     }
   })
+  if (newList.length === 0) {
+    disabled.value = false
+    MsgWarning(t('views.document.feishu.errorMessage1'))
+    loading.value = false
+    return
+  }
   dataset
     .importLarkDocument(datasetId, newList, loading)
     .then((res) => {
       MsgSuccess(t('views.document.tip.importMessage'))
+      disabled.value = false
       router.go(-1)
     })
     .catch((err) => {
       console.error('Failed to load tree nodes:', err)
+    })
+    .finally(() => {
+      disabled.value = false
     })
   loading.value = false
 }
@@ -228,6 +278,7 @@ function back() {
     margin-bottom: 20px;
   }
 }
+
 .xlsx-icon {
   svg {
     width: 24px;

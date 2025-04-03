@@ -102,23 +102,30 @@
                   :width="
                     xpackForm.show_avatar
                       ? xpackForm.show_user_avatar
-                        ? '240px'
+                        ? '232px'
                         : '270px'
                       : xpackForm.show_user_avatar
-                        ? '270px'
+                        ? '260px'
                         : '300px'
                   "
                 />
               </div>
-              <div class="flex" style="justify-content: flex-end">
+              <div class="flex mt-4" style="justify-content: flex-end">
                 <img
                   src="@/assets/display-bg3.png"
                   alt=""
-                  :width="xpackForm.show_user_avatar ? '240px' : '270px'"
-                  class="mr-8"
+                  :width="
+                    xpackForm.show_user_avatar
+                      ? xpackForm.show_avatar
+                        ? '227px'
+                        : '255px'
+                      : xpackForm.show_avatar
+                        ? '265px'
+                        : '292px'
+                  "
                   style="object-fit: contain"
                 />
-                <div class="avatar" v-if="xpackForm.show_user_avatar">
+                <div class="avatar ml-8" v-if="xpackForm.show_user_avatar">
                   <el-image
                     v-if="imgUrl.user_avatar"
                     :src="imgUrl.user_avatar"
@@ -585,7 +592,7 @@ const submit = async (formEl: FormInstance | undefined) => {
 
 defineExpose({ open })
 </script>
-<style lang="scss" scoped>
+<style lang="scss">
 .setting-preview {
   background: #f5f6f7;
   height: 570px;
@@ -621,11 +628,11 @@ defineExpose({ open })
 
 .display-setting-dialog {
   .el-dialog__header {
-    padding-right: 16px;
+    padding-right: 8px;
   }
 
   .el-dialog__headerbtn {
-    top: 13px;
+    top: 8px;
   }
 }
 </style>

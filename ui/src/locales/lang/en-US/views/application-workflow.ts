@@ -222,12 +222,14 @@ export default {
     },
     mcpNode: {
       label: 'MCP Server',
-      text: 'Call MCP Tools',
+      text: 'Call MCP Tools through SSE',
       getToolsSuccess: 'Get Tools Successfully',
       getTool: 'Get Tools',
       tool: 'Tool',
       toolParam: 'Tool Params',
       mcpServerTip: 'Please enter the JSON format of the MCP server config',
+      mcpToolTip: 'Please select a tool',
+      configLabel: 'MCP Server Config (Only supports SSE call method)',
     },
     imageGenerateNode: {
       label: 'Image Generation',

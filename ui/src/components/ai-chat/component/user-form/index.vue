@@ -65,6 +65,9 @@ import { useRoute } from 'vue-router'
 import { MsgWarning } from '@/utils/message'
 import { t } from '@/locales'
 const route = useRoute()
+const {
+  params: { accessToken }
+} = route
 const props = defineProps<{
   application: any
   type: 'log' | 'ai-chat' | 'debug-ai-chat'
@@ -78,6 +81,11 @@ const inputFieldList = ref<FormField[]>([])
 const apiInputFieldList = ref<FormField[]>([])
 const inputFieldConfig = ref({ title: t('chat.userInput') })
 const showUserInput = ref(true)
+const firstMounted = ref(false)
+
+const dynamicsFormRef = ref<InstanceType<typeof DynamicsForm>>()
+const dynamicsFormRef2 = ref<InstanceType<typeof DynamicsForm>>()
+
 const emit = defineEmits(['update:api_form_data', 'update:form_data', 'confirm', 'cancel'])
 
 const api_form_data_context = computed({
@@ -100,7 +108,7 @@ const form_data_context = computed({
 
 watch(
   () => props.application,
-  () => {
+  (data) => {
     handleInputFieldList()
   }
 )
@@ -353,14 +361,27 @@ const decodeQuery = (query: string) => {
 }
 const confirmHandle = () => {
   if (checkInputParam()) {
+    localStorage.setItem(`${accessToken}userForm`, JSON.stringify(form_data_context.value))
     emit('confirm')
   }
 }
 const cancelHandle = () => {
   emit('cancel')
 }
-defineExpose({ checkInputParam })
+const render = (data: any) => {
+  if (dynamicsFormRef.value) {
+    dynamicsFormRef.value?.render(inputFieldList.value, data)
+  }
+}
+
+const renderDebugAiChat = (data: any) => {
+  if (dynamicsFormRef2.value) {
+    dynamicsFormRef2.value?.render(apiInputFieldList.value, data)
+  }
+}
+defineExpose({ checkInputParam, render, renderDebugAiChat })
 onMounted(() => {
+  firstMounted.value = true
   handleInputFieldList()
 })
 </script>

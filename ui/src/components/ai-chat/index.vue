@@ -16,7 +16,7 @@
         :type="type"
         :first="firsUserInput"
         @confirm="UserFormConfirm"
-        @cancel="() => (showUserInput = false)"
+        @cancel="UserFormCancel"
         ref="userFormRef"
       ></UserForm>
     </div>
@@ -47,6 +47,12 @@
               :chat-management="ChatManagement"
             ></AnswerContent>
           </template>
+          <TransitionContent
+            v-if="transcribing"
+            :text="t('chat.transcribing')"
+            :type="type"
+            :application="applicationDetails"
+          ></TransitionContent>
         </div>
       </el-scrollbar>
 
@@ -57,9 +63,11 @@
         :type="type"
         :send-message="sendMessage"
         :open-chat-id="openChatId"
+        :check-input-param="checkInputParam"
         :chat-management="ChatManagement"
         v-model:chat-id="chartOpenId"
         v-model:loading="loading"
+        v-model:show-user-input="showUserInput"
         v-if="type !== 'log'"
       >
         <template #operateBefore>
@@ -67,6 +75,7 @@
             <slot name="operateBefore">
               <span></span>
             </slot>
+
             <el-button
               v-if="isUserInput"
               class="user-input-button mb-8"
@@ -93,14 +102,17 @@ import { ChatManagement, type chatType } from '@/api/type/application'
 import { randomId } from '@/utils/utils'
 import useStore from '@/stores'
 import { isWorkFlow } from '@/utils/application'
-import { debounce, first } from 'lodash'
+import { debounce } from 'lodash'
 import AnswerContent from '@/components/ai-chat/component/answer-content/index.vue'
 import QuestionContent from '@/components/ai-chat/component/question-content/index.vue'
+import TransitionContent from '@/components/ai-chat/component/transition-content/index.vue'
 import ChatInputOperate from '@/components/ai-chat/component/chat-input-operate/index.vue'
 import PrologueContent from '@/components/ai-chat/component/prologue-content/index.vue'
 import UserForm from '@/components/ai-chat/component/user-form/index.vue'
 import Control from '@/components/ai-chat/component/control/index.vue'
 import { t } from '@/locales'
+import bus from '@/bus'
+const transcribing = ref<boolean>(false)
 defineOptions({ name: 'AiChat' })
 const route = useRoute()
 const {
@@ -140,6 +152,9 @@ const userFormRef = ref<InstanceType<typeof UserForm>>()
 // 用户输入
 const firsUserInput = ref(true)
 const showUserInput = ref(false)
+// 初始表单数据（用于恢复）
+const initialFormData = ref({})
+const initialApiFormData = ref({})
 
 const isUserInput = computed(
   () =>
@@ -183,16 +198,44 @@ watch(
 
 const toggleUserInput = () => {
   showUserInput.value = !showUserInput.value
+  if (showUserInput.value) {
+    // 保存当前数据作为初始数据（用于可能的恢复）
+    initialFormData.value = JSON.parse(JSON.stringify(form_data.value))
+    initialApiFormData.value = JSON.parse(JSON.stringify(api_form_data.value))
+  }
 }
 
 function UserFormConfirm() {
   firsUserInput.value = false
   showUserInput.value = false
 }
+function UserFormCancel() {
+  // 恢复初始数据
+  form_data.value = JSON.parse(JSON.stringify(initialFormData.value))
+  api_form_data.value = JSON.parse(JSON.stringify(initialApiFormData.value))
+  userFormRef.value?.render(form_data.value)
+  showUserInput.value = false
+}
+const checkInputParam = () => {
+  return userFormRef.value?.checkInputParam() || false
+}
 
 function sendMessage(val: string, other_params_data?: any, chat?: chatType) {
-  if (!userFormRef.value?.checkInputParam()) {
-    return
+  if (isUserInput.value) {
+    if (!userFormRef.value?.checkInputParam()) {
+      showUserInput.value = true
+      return
+    } else {
+      let userFormData = JSON.parse(localStorage.getItem(`${accessToken}userForm`) || '{}')
+      const newData = Object.keys(form_data.value).reduce((result: any, key: string) => {
+        result[key] = Object.prototype.hasOwnProperty.call(userFormData, key)
+          ? userFormData[key]
+          : form_data.value[key]
+        return result
+      }, {})
+      localStorage.setItem(`${accessToken}userForm`, JSON.stringify(newData))
+      showUserInput.value = false
+    }
   }
   if (!loading.value && props.applicationDetails?.name) {
     handleDebounceClick(val, other_params_data, chat)
@@ -495,8 +538,23 @@ const handleScroll = () => {
 }
 
 onMounted(() => {
-  window.speechSynthesis.cancel()
+  if (isUserInput.value && localStorage.getItem(`${accessToken}userForm`)) {
+    let userFormData = JSON.parse(localStorage.getItem(`${accessToken}userForm`) || '{}')
+    form_data.value = userFormData
+  }
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel()
+  }
+
   window.sendMessage = sendMessage
+  bus.on('on:transcribing', (status: boolean) => {
+    transcribing.value = status
+    nextTick(() => {
+      if (scorll.value) {
+        scrollDiv.value.setScrollTop(getMaxHeight())
+      }
+    })
+  })
 })
 
 onBeforeUnmount(() => {

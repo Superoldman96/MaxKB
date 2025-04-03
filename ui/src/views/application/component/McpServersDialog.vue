@@ -2,30 +2,38 @@
   <el-dialog
     align-center
     :title="$t('common.setting')"
-    class="param-dialog"
     v-model="dialogVisible"
     style="width: 550px"
     append-to-body
     :close-on-click-modal="false"
     :close-on-press-escape="false"
   >
-    <el-form label-position="top" ref="paramFormRef" :model="form"
-             require-asterisk-position="right">
+    <el-form
+      label-position="top"
+      ref="paramFormRef"
+      :model="form"
+      require-asterisk-position="right"
+    >
       <el-form-item label="MCP" prop="mcp_enable">
         <el-switch v-model="form.mcp_enable" />
       </el-form-item>
-      <el-form-item v-if="form.mcp_enable" label="MCP Server Config" prop="mcp_servers"
-                    :rules="[{ required: true, message: $t('common.required') }]">
+      <el-form-item
+        v-if="form.mcp_enable"
+        :label="$t('views.applicationWorkflow.nodes.mcpNode.configLabel')"
+        prop="mcp_servers"
+        :rules="[{ required: true, message: $t('common.required') }]"
+      >
         <el-input
           v-model="form.mcp_servers"
           :rows="6"
           type="textarea"
+          :placeholder="mcpServerJson"
         />
       </el-form-item>
     </el-form>
 
     <template #footer>
-      <span class="dialog-footer p-16">
+      <span class="dialog-footer">
         <el-button @click.prevent="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="submit()" :loading="loading">
           {{ $t('common.save') }}
@@ -40,6 +48,13 @@ import { ref, watch } from 'vue'
 const emit = defineEmits(['refresh'])
 
 const paramFormRef = ref()
+
+const mcpServerJson = `{
+  "math": {
+    "url": "your_server",
+    "transport": "sse"
+  }
+}`
 
 const form = ref<any>({
   mcp_servers: '',
@@ -73,26 +88,4 @@ const submit = () => {
 
 defineExpose({ open })
 </script>
-<style lang="scss" scoped>
-.param-dialog {
-  padding: 8px 8px 24px 8px;
-
-  .el-dialog__header {
-    padding: 16px 16px 0 16px;
-  }
-
-  .el-dialog__body {
-    padding: 0 !important;
-  }
-
-  .dialog-max-height {
-    height: 560px;
-  }
-
-  .custom-slider {
-    .el-input-number.is-without-controls .el-input__wrapper {
-      padding: 0 !important;
-    }
-  }
-}
-</style>
+<style lang="scss" scoped></style>

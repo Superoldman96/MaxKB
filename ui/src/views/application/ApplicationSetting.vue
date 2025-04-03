@@ -204,7 +204,15 @@
                             >
                               <img src="@/assets/icon_web.svg" style="width: 58%" alt="" />
                             </AppAvatar>
-
+                            <AppAvatar
+                              v-else-if="relatedObject(datasetList, item, 'id')?.type === '2'"
+                              class="mr-8 avatar-purple"
+                              shape="square"
+                              :size="32"
+                              style="background: none"
+                            >
+                              <img src="@/assets/logo_lark.svg" style="width: 100%" alt="" />
+                            </AppAvatar>
                             <AppAvatar v-else class="mr-8 avatar-blue" shape="square" :size="32">
                               <img src="@/assets/icon_document.svg" style="width: 58%" alt="" />
                             </AppAvatar>
@@ -685,6 +693,9 @@ function getDetail() {
     applicationForm.value.tts_type = res.data.tts_type
     applicationForm.value.model_setting.no_references_prompt =
       res.data.model_setting.no_references_prompt || '{question}'
+    application.asyncGetAccessToken(id, loading).then((res: any) => {
+      applicationForm.value = { ...applicationForm.value, ...res.data }
+    })
   })
 }
 

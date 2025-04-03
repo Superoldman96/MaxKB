@@ -1,6 +1,6 @@
 <template>
   <el-dialog
-    :title="$t('views.functionLib.functionForm.form.functionName.placeholder')"
+    :title="$t('views.functionLib.functionForm.form.functionName.name')"
     v-model="dialogVisible"
     :close-on-click-modal="false"
     :close-on-press-escape="false"
@@ -16,7 +16,7 @@
       require-asterisk-position="right"
     >
       <el-form-item prop="name">
-        <el-input v-model="form.name"></el-input>
+        <el-input v-model="form.name" maxlength="64" show-word-limit></el-input>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -34,14 +34,12 @@ import { reactive, ref, watch } from 'vue'
 import type { FormInstance } from 'element-plus'
 import { cloneDeep } from 'lodash'
 import { t } from '@/locales'
-import functionLibApi from '@/api/function-lib'
-import { MsgSuccess } from '@/utils/message'
 
 const emit = defineEmits(['refresh'])
 
 const fieldFormRef = ref()
 const loading = ref<boolean>(false)
-const isEdit = ref(false)
+const isEdit = ref<boolean>(false)
 
 const form = ref<any>({
   name: ''
@@ -64,16 +62,14 @@ watch(dialogVisible, (bool) => {
     form.value = {
       name: ''
     }
-    isEdit.value = false
   }
 })
 
-const open = (row: any) => {
+const open = (row: any, edit: boolean) => {
   if (row) {
     form.value = cloneDeep(row)
-    isEdit.value = true
   }
-
+  isEdit.value = edit || false
   dialogVisible.value = true
 }
 
@@ -81,7 +77,7 @@ const submit = async (formEl: FormInstance | undefined) => {
   if (!formEl) return
   await formEl.validate((valid) => {
     if (valid) {
-      emit('refresh', form.value)
+      emit('refresh', form.value, isEdit.value)
       dialogVisible.value = false
     }
   })

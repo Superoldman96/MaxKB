@@ -1,6 +1,6 @@
 <template>
   <div class="function-lib-list-container p-24" style="padding-top: 16px">
-    <el-tabs v-model="functionType">
+    <el-tabs v-model="functionType" @tab-change="tabChangeHandle">
       <el-tab-pane :label="$t('views.functionLib.title')" name="PUBLIC"></el-tab-pane>
       <el-tab-pane :label="$t('views.functionLib.internalTitle')" name="INTERNAL"></el-tab-pane>
     </el-tabs>
@@ -65,7 +65,6 @@
                 ref="elUploadRef"
                 :file-list="[]"
                 action="#"
-                multiple
                 :auto-upload="false"
                 :show-file-list="false"
                 :limit="1"
@@ -160,6 +159,14 @@
                       <template #dropdown>
                         <el-dropdown-menu>
                           <el-dropdown-item
+                            v-if="item.template_id"
+                            :disabled="item.permission_type === 'PUBLIC' && !canEdit(item)"
+                            @click.stop="addInternalFunction(item, true)"
+                          >
+                            <el-icon><EditPen /></el-icon>
+                            {{ $t('common.edit') }}
+                          </el-dropdown-item>
+                          <el-dropdown-item
                             v-if="!item.template_id"
                             :disabled="item.permission_type === 'PUBLIC' && !canEdit(item)"
                             @click.stop="openCreateDialog(item)"
@@ -176,6 +183,7 @@
                             {{ $t('common.copy') }}
                           </el-dropdown-item>
                           <el-dropdown-item
+                            v-if="item.init_field_list?.length > 0"
                             :disabled="item.permission_type === 'PUBLIC' && !canEdit(item)"
                             @click.stop="configInitParams(item)"
                           >
@@ -266,7 +274,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, reactive, watch, nextTick } from 'vue'
-import { cloneDeep } from 'lodash'
+import { cloneDeep, get } from 'lodash'
 import functionLibApi from '@/api/function-lib'
 import FunctionFormDrawer from './component/FunctionFormDrawer.vue'
 import { MsgSuccess, MsgConfirm, MsgError } from '@/utils/message'
@@ -280,10 +288,6 @@ import { isAppIcon } from '@/utils/application'
 import InfiniteScroll from '@/components/infinite-scroll/index.vue'
 import CardBox from '@/components/card-box/index.vue'
 import AddInternalFunctionDialog from '@/views/function-lib/component/AddInternalFunctionDialog.vue'
-const internalDesc: Record<string, any> = import.meta.glob('@/assets/fx/*/detail.md', {
-  eager: true,
-  as: 'raw'
-})
 
 const { user } = useStore()
 
@@ -330,6 +334,11 @@ watch(
   { immediate: true }
 )
 
+function tabChangeHandle() {
+  selectUserId.value = 'all'
+  searchValue.value = ''
+}
+
 const canEdit = (row: any) => {
   return user.userInfo?.id === row?.user_id
 }
@@ -352,22 +361,31 @@ function openCreateDialog(data?: any) {
   }
 }
 
-function openDescDrawer(row: any) {
+async function openDescDrawer(row: any) {
   const index = row.icon.replace('icon.png', 'detail.md')
-  InternalDescDrawerRef.value.open(internalDesc[index], row)
+  const response = await fetch(index)
+  const content = await response.text()
+  InternalDescDrawerRef.value.open(content, row)
 }
 
-function addInternalFunction(data?: any) {
-  AddInternalFunctionDialogRef.value.open(data)
+function addInternalFunction(data?: any, isEdit?: boolean) {
+  AddInternalFunctionDialogRef.value.open(data, isEdit)
 }
 
-function confirmAddInternalFunction(data?: any) {
-  functionLibApi
-    .addInternalFunction(data.id, { name: data.name }, changeStateloading)
-    .then((res) => {
-      MsgSuccess(t('common.submitSuccess'))
+function confirmAddInternalFunction(data?: any, isEdit?: boolean) {
+  if (isEdit) {
+    functionLibApi.putFunctionLib(data?.id as string, data, loading).then((res) => {
+      MsgSuccess(t('common.saveSuccess'))
       searchHandle()
     })
+  } else {
+    functionLibApi
+      .addInternalFunction(data.id, { name: data.name }, changeStateloading)
+      .then((res) => {
+        MsgSuccess(t('common.addSuccess'))
+        searchHandle()
+      })
+  }
 }
 
 function searchHandle() {
@@ -401,13 +419,25 @@ async function changeState(bool: Boolean, row: any) {
       })
   } else {
     const res = await functionLibApi.getFunctionLibById(row.id, changeStateloading)
-    if (!res.data.init_params && res.data.init_field_list && res.data.init_field_list.length > 0) {
-      InitParamDrawerRef.value.open(res.data)
+    if (
+      !res.data.init_params &&
+      res.data.init_field_list &&
+      res.data.init_field_list.length > 0 &&
+      res.data.init_field_list.filter((item: any) => item.default_value && item.show_default_value).length !==
+        res.data.init_field_list.length
+    ) {
+      InitParamDrawerRef.value.open(res.data, bool)
       row.is_active = false
       return
     }
+    const init_params = res.data.init_field_list.reduce((acc: any, item: any) => {
+      acc[item.field] = item.default_value
+      return acc
+    }, {})
     const obj = {
-      is_active: bool
+      is_active: bool,
+      init_params: init_params,
+      init_field_list: res.data.init_field_list
     }
     functionLibApi.putFunctionLib(row.id, obj, changeStateloading).then((res) => {})
   }
@@ -484,7 +514,10 @@ function importFunctionLib(file: any) {
     })
 }
 
-function getList() {
+async function getList() {
+  if (userOptions.value?.length === 0) {
+    await getUserList()
+  }
   const params = {
     ...(searchValue.value && { name: searchValue.value }),
     ...(functionType.value && { function_type: functionType.value }),
@@ -520,28 +553,26 @@ function refresh(data: any) {
   getList()
 }
 
-function getUserList() {
-  applicationApi.getUserList('FUNCTION', loading).then((res) => {
-    if (res.data) {
-      userOptions.value = res.data.map((item: any) => {
-        return {
-          label: item.username,
-          value: item.id
-        }
-      })
-      if (user.userInfo) {
-        const selectUserIdValue = localStorage.getItem(user.userInfo.id + 'function')
-        if (selectUserIdValue && userOptions.value.find((v) => v.value === selectUserIdValue)) {
-          selectUserId.value = selectUserIdValue
-        }
+async function getUserList() {
+  const res = await applicationApi.getUserList('FUNCTION', loading)
+  if (res.data) {
+    userOptions.value = res.data.map((item: any) => {
+      return {
+        label: item.username,
+        value: item.id
       }
-      // getList()
+    })
+    if (user.userInfo) {
+      const selectUserIdValue = localStorage.getItem(user.userInfo.id + 'function')
+      if (selectUserIdValue && userOptions.value.find((v) => v.value === selectUserIdValue)) {
+        selectUserId.value = selectUserIdValue
+      }
     }
-  })
+  }
 }
 
 onMounted(() => {
-  getUserList()
+
 })
 </script>
 <style lang="scss" scoped>
